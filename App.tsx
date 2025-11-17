@@ -1,11 +1,10 @@
 
-
 import React, { useState, useEffect } from 'react';
-import type { User, Order, OrderFormData, Voucher, Settings, SupportTicket, Toast, OrderEditRequest, Theme, OrderShippingInfo } from './types';
+import type { User, Order, OrderFormData, Voucher, Settings, SupportTicket, Toast, OrderEditRequest, Theme, OrderShippingInfo, SupportTicketMessage } from './types';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import OrderPage from './pages/OrderPage';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { ShoppingCartIcon } from './components/Icons';
@@ -30,6 +29,7 @@ const App: React.FC = () => {
   const [orderEditRequests, setOrderEditRequests] = useState<OrderEditRequest[]>([]);
   
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [newOrderSuccess, setNewOrderSuccess] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   
   const [vouchers, setVouchers] = useState<Voucher[]>([
@@ -53,7 +53,7 @@ const App: React.FC = () => {
 
   // --- Core App Logic ---
 
-  // Load state from localStorage on initial render
+  // Effect for initial data load (run once)
   useEffect(() => {
     try {
       const savedState = localStorage.getItem('aniShopState');
@@ -63,7 +63,14 @@ const App: React.FC = () => {
 
         if (parsed.users) setUsers(parsed.users);
         if (parsed.orders) setOrders(reviveDates(parsed.orders, 'createdAt'));
-        if (parsed.supportTickets) setSupportTickets(reviveDates(parsed.supportTickets, 'createdAt'));
+        if (parsed.supportTickets) {
+             const revivedTickets = parsed.supportTickets.map((ticket: any) => ({
+                ...ticket,
+                createdAt: new Date(ticket.createdAt),
+                messages: ticket.messages.map((msg: any) => ({ ...msg, timestamp: new Date(msg.timestamp) })),
+            }));
+            setSupportTickets(revivedTickets);
+        }
         if (parsed.orderEditRequests) {
             const revivedRequests = parsed.orderEditRequests.map((req: any) => ({
                 ...req,
@@ -89,22 +96,43 @@ const App: React.FC = () => {
         setTheme(prefersDark ? 'dark' : 'light');
         document.documentElement.classList.toggle('dark', prefersDark);
     }
+  }, []);
 
-    // Announcement Modal Logic
+  // Effect for routing (run once to set up listeners)
+  useEffect(() => {
+    const handleRouting = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash.substring(1); // remove #
+
+      // Special path-based route takes precedence
+      if (path.startsWith('/edit-order/')) {
+        const token = path.split('/')[2];
+        setCurrentPage('edit-order');
+        setCurrentRouteParams({ token });
+      } else if (hash && ['home', 'order', 'admin', 'login', 'register', 'my-orders', 'support'].includes(hash)) {
+        // Handle hash-based routes
+        setCurrentPage(hash as Page);
+      } else {
+        // Default to home page
+        setCurrentPage('home');
+      }
+    };
+    
+    window.addEventListener('hashchange', handleRouting);
+    handleRouting(); // Initial page load routing
+
+    return () => {
+      window.removeEventListener('hashchange', handleRouting);
+    };
+  }, []);
+
+  // Effect for Announcement Modal
+  useEffect(() => {
     const hasSeenAnnouncement = sessionStorage.getItem('seenAnnouncement');
     if (!hasSeenAnnouncement && settings.announcement.enabled) {
         setAnnouncementModalOpen(true);
     }
-
-    // Basic routing from URL
-    const path = window.location.pathname;
-    if (path.startsWith('/edit-order/')) {
-        const token = path.split('/')[2];
-        setCurrentPage('edit-order');
-        setCurrentRouteParams({ token });
-    }
-
-  }, []);
+  }, [settings.announcement.enabled]);
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
@@ -159,12 +187,20 @@ const App: React.FC = () => {
   
   const handleLogout = () => { setUser(null); handleNavigate('home'); addToast('Bạn đã đăng xuất.', 'info'); };
 
-  const handleNavigate = (page: Page) => {
-    setLastOrderId(null); setLoginError(null);
-    if ((page === 'order' || page === 'my-orders' || page === 'support') && !user) { setCurrentPage('login'); return; }
+  const handleNavigate = (page: Page, options?: { preserveLastOrderId?: boolean }) => {
+    if (!options?.preserveLastOrderId) {
+        setLastOrderId(null);
+        setNewOrderSuccess(false);
+    }
+    setLoginError(null);
+    if ((page === 'order' || page === 'my-orders' || page === 'support') && !user) {
+        window.location.hash = 'login';
+        return;
+    }
     if (page === 'admin' && user?.role !== 'admin') return;
-    setCurrentPage(page);
-    window.history.pushState({}, '', page === 'home' ? '/' : `/${page}`);
+    
+    const newHash = page === 'home' ? '' : page;
+    window.location.hash = newHash;
   };
   
   const handleOrderSubmit = (formData: OrderFormData) => {
@@ -182,20 +218,38 @@ const App: React.FC = () => {
         };
         setOrders(p => [...p, newOrder]);
         setLastOrderId(newOrder.id);
-        handleNavigate('home');
-        addToast('Tạo đơn hàng thành công!', 'success');
+        setNewOrderSuccess(true);
+        handleNavigate('home', { preserveLastOrderId: true });
+        addToast('Tạo đơn hàng thành công! Chi tiết đơn hàng của bạn đang được hiển thị bên dưới.', 'success');
         setIsSubmittingOrder(false);
       }, 1000);
   };
   
-  const handleUpdateOrderDetails = (updatedOrder: Order) => {
+  const handleUpdateOrderDetails = (updatedOrder: Order, cancellationReason?: string) => {
       const originalOrder = orders.find(o => o.id === updatedOrder.id);
-      setOrders(p => p.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      
+      const finalOrder = { ...updatedOrder };
+      if (cancellationReason) {
+        finalOrder.cancellationReason = cancellationReason;
+      }
+
+      setOrders(p => p.map(o => o.id === updatedOrder.id ? finalOrder : o));
+      
       if (originalOrder && originalOrder.status !== updatedOrder.status && updatedOrder.email) {
           addToast(`Trạng thái đơn hàng ${updatedOrder.id} đã cập nhật thành "${updatedOrder.status}".`, 'info');
       } else {
           addToast(`Đã cập nhật chi tiết đơn hàng ${updatedOrder.id}.`, 'success');
       }
+  };
+
+  const handleUserRequestCancellation = (orderId: string) => {
+    setOrders(p => p.map(o => {
+        if (o.id === orderId && o.status === 'Chờ duyệt') {
+            return { ...o, status: 'Yêu cầu hủy' };
+        }
+        return o;
+    }));
+    addToast('Đã gửi yêu cầu hủy đơn hàng.', 'info');
   };
 
   const handleUserConfirmPayment = (orderId: string) => {
@@ -225,7 +279,6 @@ const App: React.FC = () => {
 
   const handleBanUser = (userId: string, reason: string, details?: string) => {
     setUsers(p => p.map(u => u.id === userId ? { ...u, status: 'banned', banReason: reason, banReasonDetails: details } : u));
-    addToast('Đã cấm người dùng.', 'success');
   };
     
   const handleUnbanUser = (userId: string) => {
@@ -239,14 +292,36 @@ const App: React.FC = () => {
     addToast('Đã cập nhật vai trò người dùng.', 'success');
   };
 
-  const handleCreateSupportTicket = (ticketData: Omit<SupportTicket, 'id' | 'status' | 'createdAt'>) => {
+  const handleCreateSupportTicket = (ticketData: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'messages' | 'userId'>) => {
     setIsSubmittingSupportTicket(true);
     setTimeout(() => {
-        const newTicket: SupportTicket = { id: `TICKET-${Date.now()}`, ...ticketData, status: 'Đang xử lý', createdAt: new Date() };
+        const firstMessage: SupportTicketMessage = { author: 'user', content: ticketData.issue, timestamp: new Date() };
+        const newTicket: SupportTicket = { 
+            id: `TICKET-${Date.now()}`,
+            userId: user!.id,
+            orderId: ticketData.orderId,
+            issue: ticketData.issue,
+            contactLink: ticketData.contactLink,
+            status: 'Đang xử lý', 
+            createdAt: new Date(),
+            messages: [firstMessage],
+        };
         setSupportTickets(p => [...p, newTicket]);
         setIsSubmittingSupportTicket(false);
     }, 1000);
     return true;
+  };
+
+  const handleSupportTicketReply = (ticketId: string, content: string, author: 'user' | 'admin') => {
+    setSupportTickets(p => p.map(t => {
+        if (t.id === ticketId) {
+            const newMessage: SupportTicketMessage = { author, content, timestamp: new Date() };
+            const newStatus: SupportTicket['status'] = author === 'admin' ? 'Đã trả lời' : 'Đang xử lý';
+            return { ...t, messages: [...t.messages, newMessage], status: newStatus };
+        }
+        return t;
+    }));
+    addToast('Đã gửi tin nhắn trả lời.', 'success');
   };
 
   const handleUpdateTicketStatus = (ticketId: string, status: SupportTicket['status']) => {
@@ -255,8 +330,6 @@ const App: React.FC = () => {
   };
 
   // --- Comprehensive Order Edit Request Logic ---
-
-  // Flow 1: User-initiated request from HomePage
   const handleRequestOrderEditFromUser = (orderId: string, oldData: OrderShippingInfo, newData: OrderShippingInfo) => {
     if (orderEditRequests.some(req => req.orderId === orderId && req.status === 'pending')) {
         addToast('Đơn hàng này đã có một yêu cầu chỉnh sửa đang chờ duyệt.', 'error');
@@ -269,18 +342,29 @@ const App: React.FC = () => {
     addToast('Đã gửi yêu cầu chỉnh sửa, vui lòng chờ admin duyệt.', 'info');
   };
   
-  // Flow 2: Admin generates a link for the user
   const handleCreateEditRequestLink = (orderId: string): string => {
+    const existingRequest = orderEditRequests.find(req =>
+        req.orderId === orderId &&
+        req.status === 'pending' &&
+        req.token &&
+        req.expiresAt &&
+        new Date(req.expiresAt) > new Date()
+    );
+
+    if (existingRequest) {
+        addToast('Link chỉnh sửa vẫn còn hiệu lực. Sử dụng link cũ.', 'info');
+        return `${window.location.origin}/edit-order/${existingRequest.token}`;
+    }
     const token = `EDIT-${Math.random().toString(36).substring(2, 12).toUpperCase()}`;
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
     const newRequest: OrderEditRequest = {
         id: `REQLINK-${Date.now()}`, orderId, status: 'pending', token, expiresAt, createdAt: new Date(),
     };
     setOrderEditRequests(p => [...p, newRequest]);
+    addToast('Đã tạo link chỉnh sửa mới thành công.', 'success');
     return `${window.location.origin}/edit-order/${token}`;
   };
 
-  // Flow 2 continued: User submits changes from the link
   const handleSubmitEditFromLink = (token: string, oldData: OrderShippingInfo, newData: OrderShippingInfo) => {
     setOrderEditRequests(p => p.map(req => 
         req.token === token ? { ...req, oldData, newData, token: undefined } : req
@@ -299,8 +383,8 @@ const App: React.FC = () => {
       addToast('Đã duyệt yêu cầu và cập nhật đơn hàng.', 'success');
   };
   
-  const handleRejectEditRequest = (requestId: string) => {
-      setOrderEditRequests(p => p.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r));
+  const handleRejectEditRequest = (requestId: string, reason: string) => {
+      setOrderEditRequests(p => p.map(r => r.id === requestId ? { ...r, status: 'rejected', rejectionReason: reason } : r));
       addToast('Đã từ chối yêu cầu chỉnh sửa.', 'info');
   };
 
@@ -308,15 +392,15 @@ const App: React.FC = () => {
   const renderPage = () => {
     if(settings.isMaintenanceMode && user?.role !== 'admin') return <MaintenancePage />;
     switch (currentPage) {
-      case 'home': return <HomePage onNavigate={handleNavigate} orders={orders} lastOrderId={lastOrderId} settings={settings} vouchers={vouchers} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} />;
+      case 'home': return <HomePage onNavigate={handleNavigate} orders={orders} lastOrderId={lastOrderId} settings={settings} vouchers={vouchers} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} newOrderSuccess={newOrderSuccess} />;
       case 'order': return <OrderPage onOrderSubmit={handleOrderSubmit} user={user} vouchers={vouchers} orderCount={orders.length} orderLimit={settings.orderLimit} isSubmitting={isSubmittingOrder} />;
       case 'support': return <SupportPage onCreateTicket={handleCreateSupportTicket} user={user} isSubmitting={isSubmittingSupportTicket} addToast={addToast} />;
-      case 'my-orders': return user ? <UserDashboard user={user} orders={orders} /> : <LoginPage onLogin={handleLogin} onNavigateRegister={() => handleNavigate('register')} error={loginError} />;
+      case 'my-orders': return user ? <UserDashboard user={user} orders={orders} supportTickets={supportTickets} onReplyToTicket={handleSupportTicketReply} onRequestCancellation={handleUserRequestCancellation} /> : <LoginPage onLogin={handleLogin} onNavigateRegister={() => handleNavigate('register')} error={loginError} />;
       case 'edit-order': return <EditOrderPage params={currentRouteParams} orderEditRequests={orderEditRequests} orders={orders} onSubmit={handleSubmitEditFromLink} addToast={addToast} onNavigateHome={() => handleNavigate('home')} />;
-      case 'admin': return user?.role === 'admin' ? <AdminDashboard user={user} users={users} onLogout={handleLogout} onNavigate={handleNavigate} orders={orders} onUpdateOrderDetails={handleUpdateOrderDetails} vouchers={vouchers} onCreateVoucher={handleCreateVoucher} onDeleteVoucher={handleDeleteVoucher} settings={settings} onUpdateSettings={handleUpdateSettings} onResetOrders={handleResetOrders} onBanUser={handleBanUser} onUnbanUser={handleUnbanUser} onUpdateUserRole={handleUpdateUserRole} supportTickets={supportTickets} onUpdateTicketStatus={handleUpdateTicketStatus} orderEditRequests={orderEditRequests} onCreateEditRequestLink={handleCreateEditRequestLink} onApproveEditRequest={handleApproveEditRequest} onRejectEditRequest={handleRejectEditRequest} /> : <HomePage onNavigate={handleNavigate} orders={orders} vouchers={vouchers} settings={settings} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} />;
+      case 'admin': return user?.role === 'admin' ? <AdminDashboard user={user} users={users} onLogout={handleLogout} onNavigate={handleNavigate} orders={orders} onUpdateOrderDetails={handleUpdateOrderDetails} vouchers={vouchers} onCreateVoucher={handleCreateVoucher} onDeleteVoucher={handleDeleteVoucher} settings={settings} onUpdateSettings={handleUpdateSettings} onResetOrders={handleResetOrders} onBanUser={handleBanUser} onUnbanUser={handleUnbanUser} onUpdateUserRole={handleUpdateUserRole} supportTickets={supportTickets} onUpdateTicketStatus={handleUpdateTicketStatus} onSupportTicketReply={handleSupportTicketReply} orderEditRequests={orderEditRequests} onCreateEditRequestLink={handleCreateEditRequestLink} onApproveEditRequest={handleApproveEditRequest} onRejectEditRequest={handleRejectEditRequest} addToast={addToast} /> : <HomePage onNavigate={handleNavigate} orders={orders} vouchers={vouchers} settings={settings} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} newOrderSuccess={newOrderSuccess} />;
       case 'login': return <LoginPage onLogin={handleLogin} onNavigateRegister={() => handleNavigate('register')} error={loginError} />;
       case 'register': return <RegisterPage onRegister={handleRegister} onNavigateLogin={() => handleNavigate('login')} />;
-      default: return <HomePage onNavigate={handleNavigate} orders={orders} vouchers={vouchers} settings={settings} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} />;
+      default: return <HomePage onNavigate={handleNavigate} orders={orders} vouchers={vouchers} settings={settings} onUserConfirmPayment={handleUserConfirmPayment} onRequestOrderEdit={handleRequestOrderEditFromUser} newOrderSuccess={newOrderSuccess} />;
     }
   };
 

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import type { Order, Voucher } from '../types';
 import { CloseIcon, UserCircleIcon, PhoneIcon, MapPinIcon, LinkIcon, HashtagIcon, TagIcon, ChatBubbleLeftEllipsisIcon, MailIcon } from './Icons';
@@ -8,12 +9,13 @@ interface OrderDetailsModalProps {
     vouchers: Voucher[];
     onClose: () => void;
     onSave: (updatedOrder: Order) => void;
+    onCancelOrder: (order: Order) => void;
 }
 
-const ALL_STATUSES: Order['status'][] = ['Chờ duyệt', 'Đã đặt', 'Chờ người bán chuẩn bị', 'Đã giao cho ĐVVC', 'Giao thành công', 'Đã hủy'];
+const ALL_STATUSES: Order['status'][] = ['Chờ duyệt', 'Đã đặt', 'Chờ người bán chuẩn bị', 'Đã giao cho ĐVVC', 'Giao thành công', 'Đã hủy', 'Yêu cầu hủy'];
 const ALL_PAYMENT_STATUSES: Order['paymentStatus'][] = ['Chưa thanh toán', 'Chờ duyệt thanh toán', 'Đã thanh toán'];
 
-const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, vouchers, onClose, onSave }) => {
+const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, vouchers, onClose, onSave, onCancelOrder }) => {
     const [editedOrder, setEditedOrder] = useState<Order>(order);
     const [error, setError] = useState<string>('');
 
@@ -23,6 +25,13 @@ const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, vouchers, 
     
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+        
+        if (name === 'status' && value === 'Đã hủy') {
+            onCancelOrder(editedOrder);
+            onClose();
+            return;
+        }
+
         setEditedOrder(prev => ({ ...prev, [name]: value }));
     };
 

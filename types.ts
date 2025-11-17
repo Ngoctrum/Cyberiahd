@@ -28,6 +28,7 @@ export interface OrderFormData {
     productLink: string;
     quantity: number;
     voucher: string;
+
     customerName: string;
     address: string;
     contact: string;
@@ -48,19 +49,28 @@ export interface Order extends OrderFormData {
     id: string;
     userId: string;
     serviceFee: number;
-    status: 'Chờ duyệt' | 'Đã đặt' | 'Chờ người bán chuẩn bị' | 'Đã giao cho ĐVVC' | 'Giao thành công' | 'Đã hủy';
+    status: 'Chờ duyệt' | 'Đã đặt' | 'Chờ người bán chuẩn bị' | 'Đã giao cho ĐVVC' | 'Giao thành công' | 'Đã hủy' | 'Yêu cầu hủy';
     paymentStatus: 'Chưa thanh toán' | 'Chờ duyệt thanh toán' | 'Đã thanh toán';
     createdAt: Date;
     mvd: string;
+    cancellationReason?: string;
+}
+
+export interface SupportTicketMessage {
+    author: 'user' | 'admin';
+    content: string;
+    timestamp: Date;
 }
 
 export interface SupportTicket {
     id: string;
+    userId: string;
     orderId: string;
     issue: string;
-    contactLink: string;
-    status: 'Đang xử lý' | 'Đã xử lý';
+    contactLink?: string;
+    status: 'Đang xử lý' | 'Đã trả lời' | 'Đã đóng';
     createdAt: Date;
+    messages: SupportTicketMessage[];
 }
 
 export interface OrderEditRequest {
@@ -68,6 +78,7 @@ export interface OrderEditRequest {
     orderId: string;
     status: 'pending' | 'approved' | 'rejected';
     createdAt: Date;
+    rejectionReason?: string;
     // For admin-generated links
     token?: string;
     expiresAt?: Date;

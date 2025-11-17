@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { Order } from '../../types';
 import { SearchIcon, ChevronLeftIcon, ChevronRightIcon, DotsVerticalIcon, PencilAltIcon } from '../../components/Icons';
@@ -12,7 +11,7 @@ interface OrderListProps {
 }
 
 const ITEMS_PER_PAGE = 10;
-const STATUS_OPTIONS: Order['status'][] = ['Chờ duyệt', 'Đã đặt', 'Chờ người bán chuẩn bị', 'Đã giao cho ĐVVC', 'Giao thành công', 'Đã hủy'];
+const STATUS_OPTIONS: Order['status'][] = ['Chờ duyệt', 'Đã đặt', 'Chờ người bán chuẩn bị', 'Đã giao cho ĐVVC', 'Giao thành công', 'Đã hủy', 'Yêu cầu hủy'];
 
 const getStatusPill = (status: Order['status']) => {
     const baseClasses = "text-xs font-semibold px-2.5 py-1 rounded-full inline-block tracking-wide";
@@ -23,6 +22,7 @@ const getStatusPill = (status: Order['status']) => {
         case 'Đã giao cho ĐVVC': return `${baseClasses} bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300`;
         case 'Giao thành công': return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300`;
         case 'Đã hủy': return `${baseClasses} bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-300`;
+        case 'Yêu cầu hủy': return `${baseClasses} bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300`;
         default: return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300`;
     }
 };

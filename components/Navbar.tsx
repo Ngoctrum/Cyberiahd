@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import type { User, Theme } from '../types';
 import { ShoppingCartIcon, MenuIcon, CloseIcon, ChevronDownIcon, ClipboardListIcon, LogoutIcon, QuestionMarkCircleIcon, SunIcon, MoonIcon } from './Icons';
@@ -38,8 +39,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, onNavigate, onLogout, currentPage
         return (
             <button
               onClick={() => {
-                  onNavigate(page);
                   setIsMenuOpen(false);
+                  onNavigate(page);
               }}
               className={`${baseClasses} ${isSidebar ? sidebarClasses : navbarClasses}`}
             >
@@ -65,7 +66,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onNavigate, onLogout, currentPage
     const SidebarContent = () => (
         <>
             <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-                <button onClick={() => { onNavigate('home'); setIsMenuOpen(false); }} className="flex-shrink-0 flex items-center gap-2">
+                <button onClick={() => { setIsMenuOpen(false); onNavigate('home'); }} className="flex-shrink-0 flex items-center gap-2">
                     <ShoppingCartIcon className="w-8 h-8 text-indigo-500" />
                     <span className="text-xl font-bold text-slate-800 dark:text-slate-200">Ani Shop</span>
                 </button>
@@ -93,10 +94,10 @@ const Navbar: React.FC<NavbarProps> = ({ user, onNavigate, onLogout, currentPage
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        <button onClick={() => { onNavigate('login'); setIsMenuOpen(false); }} className="w-full text-center rounded-md bg-indigo-600 text-white px-3 py-2 text-base font-medium hover:bg-indigo-700 transition-colors">
+                        <button onClick={() => { setIsMenuOpen(false); onNavigate('login'); }} className="w-full text-center rounded-md bg-indigo-600 text-white px-3 py-2 text-base font-medium hover:bg-indigo-700 transition-colors">
                             Đăng nhập
                         </button>
-                        <button onClick={() => { onNavigate('register'); setIsMenuOpen(false); }} className="w-full text-center rounded-md bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-2 text-base font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                        <button onClick={() => { setIsMenuOpen(false); onNavigate('register'); }} className="w-full text-center rounded-md bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-3 py-2 text-base font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
                             Đăng ký
                         </button>
                     </div>

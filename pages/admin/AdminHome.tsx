@@ -39,7 +39,7 @@ const AdminHome: React.FC<AdminHomeProps> = ({ user, orders, vouchers }) => {
 
     const statusCounts = useMemo(() => {
         const counts: { [key in Order['status']]: number } = {
-            'Chờ duyệt': 0, 'Đã đặt': 0, 'Chờ người bán chuẩn bị': 0, 'Đã giao cho ĐVVC': 0, 'Giao thành công': 0, 'Đã hủy': 0,
+            'Chờ duyệt': 0, 'Đã đặt': 0, 'Chờ người bán chuẩn bị': 0, 'Đã giao cho ĐVVC': 0, 'Giao thành công': 0, 'Đã hủy': 0, 'Yêu cầu hủy': 0,
         };
         orders.forEach(order => { if (order.status in counts) counts[order.status]++; });
         return counts;
@@ -50,6 +50,7 @@ const AdminHome: React.FC<AdminHomeProps> = ({ user, orders, vouchers }) => {
     const statusColors: {[key in Order['status']]: string} = {
         'Chờ duyệt': '#f59e0b', 'Đã đặt': '#06b6d4', 'Chờ người bán chuẩn bị': '#3b82f6',
         'Đã giao cho ĐVVC': '#6366f1', 'Giao thành công': '#22c55e', 'Đã hủy': '#ef4444',
+        'Yêu cầu hủy': '#f97316',
     };
 
     return (

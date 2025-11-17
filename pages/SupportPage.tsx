@@ -1,13 +1,15 @@
 
 
+
+
 import React, { useState } from 'react';
 import type { SupportTicket, User } from '../types';
-import { QuestionMarkCircleIcon, HashtagIcon, ChatAlt2Icon, LinkIcon, CheckCircleIcon, PaperAirplaneIcon } from '../components/Icons';
+import { QuestionMarkCircleIcon, HashtagIcon, ChatAlt2Icon, CheckCircleIcon, PaperAirplaneIcon, LinkIcon } from '../components/Icons';
 import { Loader } from '../components/Loader';
 
 
 interface SupportPageProps {
-    onCreateTicket: (ticketData: Omit<SupportTicket, 'id' | 'status' | 'createdAt'>) => boolean;
+    onCreateTicket: (ticketData: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'messages' | 'userId'>) => boolean;
     user: User | null;
     isSubmitting: boolean;
     addToast: (message: string, type: 'success' | 'error' | 'info') => void;
@@ -22,8 +24,8 @@ const SupportPage: React.FC<SupportPageProps> = ({ onCreateTicket, user, isSubmi
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
-        if (!orderId || !issue || !contactLink) {
-            addToast('Vui lòng điền đầy đủ thông tin.', 'error');
+        if (!issue) {
+            addToast('Vui lòng mô tả vấn đề của bạn.', 'error');
             return;
         }
         const success = onCreateTicket({ orderId, issue, contactLink });
@@ -38,12 +40,12 @@ const SupportPage: React.FC<SupportPageProps> = ({ onCreateTicket, user, isSubmi
             <div className="w-full max-w-2xl mx-auto text-center animate-fade-in p-8 bg-white dark:bg-slate-800/50 shadow-xl border border-slate-200 dark:border-slate-700 rounded-lg">
                 <CheckCircleIcon className="w-16 h-16 mx-auto text-green-500" />
                 <h1 className="mt-4 text-3xl font-extrabold text-slate-900 dark:text-white">
-                    Yêu cầu đã được ghi nhận!
+                    Phiếu hỗ trợ đã được tạo!
                 </h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
-                    Bộ phận CSKH sẽ liên hệ với bạn trong vòng 24h.
+                    Bạn có thể xem và trả lời phiếu này trong trang "Bảng điều khiển".
                     <br />
-                    Vui lòng chú ý điện thoại hoặc tin nhắn.
+                    Bộ phận CSKH sẽ phản hồi trong thời gian sớm nhất.
                 </p>
             </div>
         );
@@ -56,7 +58,7 @@ const SupportPage: React.FC<SupportPageProps> = ({ onCreateTicket, user, isSubmi
                     <QuestionMarkCircleIcon className="w-8 h-8 text-indigo-500" />
                 </div>
                 <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white">
-                    Gửi Phiếu Hỗ trợ
+                    Tạo Phiếu Hỗ trợ
                 </h1>
                 <p className="text-lg text-slate-600 dark:text-slate-400 mt-2">
                     Mô tả vấn đề bạn đang gặp phải, chúng tôi sẽ hỗ trợ bạn sớm nhất có thể.
@@ -67,24 +69,39 @@ const SupportPage: React.FC<SupportPageProps> = ({ onCreateTicket, user, isSubmi
                  <div>
                     <label htmlFor="orderId" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                         <HashtagIcon className="w-5 h-5 text-slate-400"/>
-                        <span>Mã đơn hàng</span>
+                        <span>Mã đơn hàng liên quan (nếu có)</span>
                     </label>
                     <input 
                         type="text" 
                         name="orderId" 
                         id="orderId" 
-                        required 
                         value={orderId}
                         onChange={(e) => setOrderId(e.target.value)}
                         className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
                         placeholder="VD: ANI123XYZ" 
                     />
                 </div>
+
+                <div>
+                    <label htmlFor="contactLink" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <LinkIcon className="w-5 h-5 text-slate-400"/>
+                        <span>Link liên hệ (Zalo, FB - không bắt buộc)</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        name="contactLink" 
+                        id="contactLink" 
+                        value={contactLink}
+                        onChange={(e) => setContactLink(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
+                        placeholder="https://zalo.me/..." 
+                    />
+                </div>
                 
                  <div>
                     <label htmlFor="issue" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                         <ChatAlt2Icon className="w-5 h-5 text-slate-400"/>
-                        <span>Vấn đề gặp phải</span>
+                        <span>Mô tả vấn đề ban đầu</span>
                     </label>
                     <textarea 
                         name="issue" 
@@ -99,29 +116,12 @@ const SupportPage: React.FC<SupportPageProps> = ({ onCreateTicket, user, isSubmi
                 </div>
 
                 <div>
-                    <label htmlFor="contactLink" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                        <LinkIcon className="w-5 h-5 text-slate-400"/>
-                        <span>Link Facebook hoặc Zalo để liên hệ</span>
-                    </label>
-                    <input 
-                        type="text" 
-                        name="contactLink" 
-                        id="contactLink" 
-                        required 
-                        value={contactLink}
-                        onChange={(e) => setContactLink(e.target.value)}
-                        className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" 
-                        placeholder="https://www.facebook.com/yourprofile" 
-                    />
-                </div>
-
-                <div>
                     <button 
                         type="submit" 
                         disabled={isSubmitting}
                         className="w-full mt-4 bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-indigo-500/50 shadow-lg disabled:bg-indigo-400 dark:disabled:bg-indigo-800 disabled:cursor-not-allowed"
                     >
-                        {isSubmitting ? <Loader /> : <><PaperAirplaneIcon className="w-5 h-5" /> Gửi Yêu cầu</>}
+                        {isSubmitting ? <Loader /> : <><PaperAirplaneIcon className="w-5 h-5" /> Tạo Phiếu</>}
                     </button>
                 </div>
 

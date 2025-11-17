@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { TagIcon, RocketLaunchIcon, ShieldCheckIcon, UserCircleIcon, MapPinIcon, PhoneIcon, LinkIcon, HashtagIcon, ChatBubbleLeftEllipsisIcon, FacebookIcon, SparklesIcon, PencilAltIcon } from '../components/Icons';
 import OrderStatusTracker from '../components/OrderStatusTracker';
@@ -15,6 +16,7 @@ interface HomePageProps {
     vouchers: Voucher[];
     onUserConfirmPayment: (orderId: string) => void;
     onRequestOrderEdit: (orderId: string, oldData: OrderShippingInfo, newData: OrderShippingInfo) => void;
+    newOrderSuccess: boolean;
 }
 
 const FeatureCard: React.FC<{icon: React.ReactNode, title: string, children: React.ReactNode}> = ({icon, title, children}) => (
@@ -54,10 +56,11 @@ const InfoItem: React.FC<{icon: React.ReactNode, label: string, children: React.
 );
 
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate, orders, lastOrderId, settings, vouchers, onUserConfirmPayment, onRequestOrderEdit }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigate, orders, lastOrderId, settings, vouchers, onUserConfirmPayment, onRequestOrderEdit, newOrderSuccess }) => {
     const [searchId, setSearchId] = useState('');
     const [searched, setSearched] = useState(false);
     const gridRef = useRef<HTMLDivElement>(null);
+    const searchResultRef = useRef<HTMLDivElement>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [orderToEdit, setOrderToEdit] = useState<Order | null>(null);
 
@@ -65,6 +68,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, orders, lastOrderId, se
         if (lastOrderId) {
             setSearchId(lastOrderId);
             setSearched(true);
+            setTimeout(() => {
+                searchResultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
         }
     }, [lastOrderId]);
     
@@ -249,8 +255,8 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, orders, lastOrderId, se
                         </form>
                     </div>
 
-                    <div className="mt-8 min-h-[150px]">
-                        {lastOrderId && !searched && (
+                    <div className="mt-8 min-h-[150px]" ref={searchResultRef}>
+                        {newOrderSuccess && lastOrderId && (
                             <div className="mb-8 p-4 text-center bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-700 rounded-lg animate-fade-in">
                                 <p className="font-semibold">Đặt hàng thành công!</p>
                                 <p>Mã đơn hàng của bạn là <span className="font-bold">{lastOrderId}</span>. Dưới đây là thông tin chi tiết:</p>

@@ -1,5 +1,6 @@
 
 
+
 import React, { useMemo } from 'react';
 import type { OrderEditRequest, OrderShippingInfo } from '../../types';
 import { CheckIcon, XCircleIcon, ClockIcon } from '../../components/Icons';
@@ -7,7 +8,7 @@ import { CheckIcon, XCircleIcon, ClockIcon } from '../../components/Icons';
 interface EditRequestListProps {
     requests: OrderEditRequest[];
     onApprove: (requestId: string) => void;
-    onReject: (requestId: string) => void;
+    onReject: (request: OrderEditRequest) => void;
 }
 
 const DataField: React.FC<{ label: string, value: string, changed?: boolean }> = ({ label, value, changed }) => (
@@ -118,7 +119,7 @@ const EditRequestList: React.FC<EditRequestListProps> = ({ requests, onApprove, 
                     </div>
                     <div className="space-y-4">
                         {pendingRequests.length > 0 ? pendingRequests.map(req => (
-                            <RequestCard key={req.id} request={req} onApprove={() => onApprove(req.id)} onReject={() => onReject(req.id)} />
+                            <RequestCard key={req.id} request={req} onApprove={() => onApprove(req.id)} onReject={() => onReject(req)} />
                         )) : <div className="p-4 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg text-center text-sm text-zinc-500">Không có yêu cầu nào đang chờ duyệt.</div>}
                     </div>
                 </div>
@@ -131,14 +132,21 @@ const EditRequestList: React.FC<EditRequestListProps> = ({ requests, onApprove, 
                          {processedRequests.length > 0 ? processedRequests
                             .filter(req => req.status !== 'pending')
                             .map(req => (
-                                <div key={req.id} className={`p-4 rounded-lg border flex justify-between items-center ${req.status === 'approved' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
-                                    <div>
-                                        <p className="font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">ĐH: {req.orderId}</p>
-                                        <p className="text-xs text-zinc-500">Ngày: {new Date(req.createdAt).toLocaleDateString('vi-VN')}</p>
+                                <div key={req.id} className={`p-4 rounded-lg border ${req.status === 'approved' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">ĐH: {req.orderId}</p>
+                                            <p className="text-xs text-zinc-500">Ngày: {new Date(req.createdAt).toLocaleDateString('vi-VN')}</p>
+                                        </div>
+                                        <span className={`text-xs font-bold uppercase ${req.status === 'approved' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            {req.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
+                                        </span>
                                     </div>
-                                    <span className={`text-xs font-bold uppercase ${req.status === 'approved' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {req.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
-                                    </span>
+                                    {req.status === 'rejected' && req.rejectionReason && (
+                                        <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                                            <p className="text-xs text-red-700 dark:text-red-300"><strong>Lý do:</strong> {req.rejectionReason}</p>
+                                        </div>
+                                    )}
                                 </div>
                         )) : <div className="p-4 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg text-center text-sm text-zinc-500">Chưa có yêu cầu nào được xử lý.</div>}
                     </div>

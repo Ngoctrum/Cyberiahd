@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import type { OrderFormData, User, Voucher } from '../types';
+import type { OrderFormData, User, Voucher, ProductData } from '../types';
 import { 
     ShoppingCartIcon, 
     LinkIcon, 
@@ -12,8 +12,11 @@ import {
     ChatBubbleLeftEllipsisIcon,
     XCircleIcon,
     MailIcon,
+    SparklesIcon,
 } from '../components/Icons';
 import { Loader } from '../components/Loader';
+import { fetchProductInfo } from '../services/geminiService';
+import ProductInfoSkeleton from '../components/ProductInfoSkeleton';
 
 
 interface OrderPageProps {
@@ -36,6 +39,10 @@ const OrderPage: React.FC<OrderPageProps> = ({ onOrderSubmit, user, vouchers, or
         notes: '',
         email: user?.email || '',
     });
+
+    const [productData, setProductData] = useState<ProductData | null>(null);
+    const [isFetchingProduct, setIsFetchingProduct] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     
     const isOrderLimitReached = orderCount >= orderLimit;
     const isUserBanned = user?.status === 'banned';
@@ -50,10 +57,37 @@ const OrderPage: React.FC<OrderPageProps> = ({ onOrderSubmit, user, vouchers, or
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+        if (name === 'productLink') {
+            setProductData(null);
+            setFetchError(null);
+        }
         setFormData(prev => ({
             ...prev,
             [name]: name === 'quantity' ? Math.max(1, parseInt(value)) : value
         }));
+    };
+
+    const handleFetchProductInfo = async () => {
+        const url = formData.productLink.trim();
+        const shopeeRegex = /https?:\/\/(www\.)?shopee\.vn\/.+/;
+
+        if (!url || !shopeeRegex.test(url) || productData) {
+            return;
+        }
+
+        setIsFetchingProduct(true);
+        setFetchError(null);
+        setProductData(null);
+
+        try {
+            const data = await fetchProductInfo(url);
+            setProductData(data);
+        } catch (error) {
+            console.error(error);
+            setFetchError('Không thể lấy thông tin sản phẩm. Vui lòng kiểm tra lại link hoặc điền thủ công.');
+        } finally {
+            setIsFetchingProduct(false);
+        }
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -115,7 +149,7 @@ const OrderPage: React.FC<OrderPageProps> = ({ onOrderSubmit, user, vouchers, or
                                 <LinkIcon className="w-5 h-5 text-slate-400"/>
                                 <span>Link sản phẩm Shopee</span>
                             </label>
-                            <input type="url" name="productLink" id="productLink" required value={formData.productLink} onChange={handleChange} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="https://shopee.vn/..." />
+                            <input type="url" name="productLink" id="productLink" required value={formData.productLink} onChange={handleChange} onBlur={handleFetchProductInfo} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="https://shopee.vn/..." />
                         </div>
                         <div>
                             <label htmlFor="quantity" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -125,6 +159,25 @@ const OrderPage: React.FC<OrderPageProps> = ({ onOrderSubmit, user, vouchers, or
                             <input type="number" name="quantity" id="quantity" required value={formData.quantity} onChange={handleChange} min="1" className="mt-1 block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
                         </div>
                     </div>
+                    
+                    {/* AI Product Preview Section */}
+                    {isFetchingProduct && <ProductInfoSkeleton />}
+                    {fetchError && <p className="mt-2 text-sm text-red-500 dark:text-red-400">{fetchError}</p>}
+                    {productData && !isFetchingProduct && (
+                        <div className="mt-4 p-4 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/60 animate-fade-in-fast">
+                             <div className="flex items-start gap-2 mb-2">
+                                <SparklesIcon className="w-5 h-5 text-indigo-500" />
+                                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Thông tin sản phẩm (AI)</h4>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <img src={productData.imageUrl} alt="Product" className="w-20 h-20 object-cover rounded-md flex-shrink-0" />
+                                <div className="flex-1">
+                                    <p className="font-semibold text-slate-800 dark:text-slate-100 line-clamp-2">{productData.productName}</p>
+                                    <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">{productData.price.toLocaleString('vi-VN')}đ</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <label htmlFor="voucher" className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
